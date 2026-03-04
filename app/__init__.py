@@ -1,0 +1,1 @@
+"""TipTrack app module."""

@@ -1,0 +1,30 @@
+# streamlit>=1.33.0  # optional legacy dependency
+pandas>=2.0.0
+numpy>=1.24.0
+faker>=24.0.0
+qrcode[pil]>=7.4.2
+pillow>=10.0.0
+# FastAPI + backend server
+fastapi>=0.104.0
+uvicorn>=0.24.0
+httpx>=0.25.0
+# Database ORM
+sqlalchemy>=2.0.0
+# Payment processing (Razorpay and Stripe)
+razorpay>=2.0.0
+stripe>=7.0.0
+requests>=2.31.0
+# Sentiment analysis: Local models (BERT/RoBERTa)
+transformers>=4.41.0
+torch>=2.2.0
+# ML models
+scikit-learn>=1.3.0
+joblib>=1.3.0
+# LLM-based feedback intelligence (optional)
+# Uncomment ONE of the following for advanced AI:
+openai>=1.0.0  # For GPT models with MCP tool integration
+# google-generativeai>=0.3.0  # For Gemini
+# Security
+bcrypt>=4.0.1
+PyJWT>=2.8.0
+

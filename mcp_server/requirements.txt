@@ -1,0 +1,3 @@
+# Dependencies for MCP server
+# Add any Python packages required by your server logic
+# e.g. pip install modelcontextprotocol
