@@ -134,7 +134,7 @@ def create_transaction(
         db.flush()
     
     # Create transaction with advanced sentiment analysis
-    from app.sentiment import analyze_feedback_advanced
+    from legacy_streamlit.sentiment import analyze_feedback_advanced
     try:
         # Use advanced LLM-based analysis (local BERT by default)
         feedback_analysis = analyze_feedback_advanced(req.feedback or "", provider="local")
@@ -142,7 +142,7 @@ def create_transaction(
         tags = ",".join(feedback_analysis.get("tags", []))
     except Exception:
         # Fallback to simple sentiment
-        from app.sentiment import analyze_sentiment
+        from legacy_streamlit.sentiment import analyze_sentiment
         sentiment = analyze_sentiment(req.feedback or "", rating=req.rating)
         tags = ""
     
@@ -208,7 +208,7 @@ def get_waiter_transactions(waiter_id: str, db: Session = Depends(get_db), curre
 def get_waiter_insights(waiter_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get AI-driven insights for a waiter."""
     import pandas as pd
-    from app.sentiment import generate_insights
+    from legacy_streamlit.sentiment import generate_insights
     
     w = db.query(Waiter).filter_by(waiter_id=waiter_id).one_or_none()
     if not w:
@@ -298,7 +298,7 @@ def get_team_insights(db: Session = Depends(get_db), current_user: User = Depend
     
     try:
         import pandas as pd
-        from app.sentiment import generate_team_insights
+        from legacy_streamlit.sentiment import generate_team_insights
 
         txs = db.query(Transaction).outerjoin(Rating).outerjoin(Feedback).join(Waiter).all()
         data = []

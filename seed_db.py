@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from random import choice, uniform, randint
 
-from app import utils
+from legacy_streamlit import utils
 
 
 def main():

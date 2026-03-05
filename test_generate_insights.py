@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timedelta
 import pandas as pd
 
-from app.sentiment import generate_insights
+from legacy_streamlit.sentiment import generate_insights
 
 now = datetime.now()
 
