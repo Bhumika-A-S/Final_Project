@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:http/http.dart' as http;
 import '../services/api.dart';
-import '../main.dart';
+import 'waiter_dashboard_page.dart';
+import 'owner_dashboard_page.dart';
+import 'admin_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,78 +12,120 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _userCtl = TextEditingController();
-  final _passCtl = TextEditingController();
-  bool _passwordVisible = false;
-  bool _loading = false;
-  String? _error;
 
-  Future<void> _login() async {
+  final TextEditingController usernameController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
+  bool loading = false;
+
+  Future<void> login() async {
+
     setState(() {
-      _loading = true;
-      _error = null;
+      loading = true;
     });
-    final result = await api.login(_userCtl.text, _passCtl.text);
+
+    final result = await api.login(
+      usernameController.text,
+      passwordController.text,
+    );
+
     setState(() {
-      _loading = false;
+      loading = false;
     });
-    if (result != null && result['access_token'] != null) {
-      final auth = Provider.of<AuthModel>(context, listen: false);
-      auth.update(t: result['access_token'], r: result['role'], u: _userCtl.text);
-      Navigator.pushReplacementNamed(context, '/');
-    } else {
-      // try to ping backend root to see if server is reachable
-      String msg = 'Login failed';
-      try {
-        final ping = await http.get(Uri.parse('${api.baseUrl}/'));
-        if (ping.statusCode != 200) {
-          msg = 'Backend responded ${ping.statusCode}';
-        } else {
-          msg = 'Invalid credentials';
-        }
-      } catch (e) {
-        msg = 'Unable to reach backend at ${api.baseUrl}';
-      }
-      setState(() {
-        _error = msg;
-      });
+
+    if (result == null) {
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Login failed")),
+      );
+
+      return;
     }
+
+    String role = result["role"];
+
+    // WAITER LOGIN
+    if (role == "waiter") {
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+             WaiterDashboardPage(),
+        ),
+      );
+
+    }
+
+    // OWNER LOGIN
+    else if (role == "owner") {
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OwnerDashboardPage(),
+        ),
+      );
+
+    }
+
+    // ADMIN LOGIN
+    else if (role == "admin") {
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AdminPage(),
+        ),
+      );
+
+    }
+
   }
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Sign In')),
-      body: Center(
-        child: Card(
-          margin: const EdgeInsets.all(24),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: _userCtl, decoration: const InputDecoration(labelText: 'Username')),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _passCtl,
-                  obscureText: !_passwordVisible,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    suffixIcon: IconButton(
-                      icon: Icon(_passwordVisible ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
-                    ),
-                  ),
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 8),
-                  Text(_error!, style: const TextStyle(color: Colors.red)),
-                ],
-                const SizedBox(height: 16),
-                _loading ? const CircularProgressIndicator() : ElevatedButton(onPressed: _login, child: const Text('Sign in')),
-              ],
+
+      appBar: AppBar(
+        title: const Text("TipTrack Login"),
+      ),
+
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+
+            TextField(
+              controller: usernameController,
+              decoration: const InputDecoration(
+                labelText: "Username",
+              ),
             ),
-          ),
+
+            const SizedBox(height: 10),
+
+            TextField(
+              controller: passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: "Password",
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            loading
+                ? const CircularProgressIndicator()
+                : ElevatedButton(
+                    onPressed: login,
+                    child: const Text("Login"),
+                  ),
+
+          ],
         ),
       ),
     );

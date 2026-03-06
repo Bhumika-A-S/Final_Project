@@ -81,37 +81,101 @@ def login(req: AuthRequest, db: Session = Depends(get_db)):
 # Waiter routes
 @app.get("/waiters", response_model=List[WaiterResponse])
 def list_waiters(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """List all waiters (auth required)."""
-    waiters = db.query(Waiter).all()
-    return [WaiterResponse(id=w.id, waiter_id=w.waiter_id, name=w.name, phone=w.phone) for w in waiters]
+    """List all waiters (admin only)."""
 
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    waiters = db.query(Waiter).all()
+
+    return [
+        WaiterResponse(
+            id=w.id,
+            waiter_id=w.waiter_id,
+            name=w.name,
+            phone=w.phone
+        )
+        for w in waiters
+    ]
 
 @app.get("/waiters/{waiter_id}", response_model=WaiterResponse)
 def get_waiter(waiter_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get waiter by waiter_id."""
+
+    if current_user.role not in ["admin", "owner"]:
+        raise HTTPException(status_code=403, detail="Only admin or owner can access waiter details")
+
     w = db.query(Waiter).filter_by(waiter_id=waiter_id).one_or_none()
+
     if not w:
         raise HTTPException(status_code=404, detail="Waiter not found")
-    return WaiterResponse(id=w.id, waiter_id=w.waiter_id, name=w.name, phone=w.phone)
 
+    return WaiterResponse(
+        id=w.id,
+        waiter_id=w.waiter_id,
+        name=w.name,
+        phone=w.phone
+    )
 
+# Waiter routes
 @app.get("/waiters/{waiter_id}/summary", response_model=WaiterSummary)
-def get_waiter_summary(waiter_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_waiter_summary(
+    waiter_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Get waiter summary (total tips, avg rating, count)."""
+
+    # Find waiter
     w = db.query(Waiter).filter_by(waiter_id=waiter_id).one_or_none()
     if not w:
         raise HTTPException(status_code=404, detail="Waiter not found")
-    # RBAC: if a waiter user requests summary, only allow if their username matches the waiter_id
+
+    # ---------------- RBAC RULES ----------------
+
+    # Waiters can only access their own summary
     if current_user.role == "waiter" and current_user.username != waiter_id:
-        raise HTTPException(status_code=403, detail="Waiters can only access their own summary")
+        raise HTTPException(
+            status_code=403,
+            detail="Waiters can only access their own summary"
+        )
+
+    # Only allow waiter, owner, admin roles
+    if current_user.role not in ["waiter", "owner", "admin"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized role"
+        )
+
+    # --------------------------------------------
+
+    # Fetch transactions
     txs = db.query(Transaction).filter_by(waiter_id=w.id).all()
+
     if not txs:
-        return WaiterSummary(waiter_id=waiter_id, total_tips=0.0, avg_rating=0.0, num_tips=0)
-    
+        return WaiterSummary(
+            waiter_id=waiter_id,
+            total_tips=0.0,
+            avg_rating=0.0,
+            num_tips=0
+        )
+
     total = sum(t.amount or 0.0 for t in txs)
-    ratings = [t.rating.value for t in txs if t.rating]
+
+    ratings = [
+        t.rating.value
+        for t in txs
+        if t.rating and getattr(t.rating, "value", None) is not None
+    ]
+
     avg = sum(ratings) / len(ratings) if ratings else 0.0
-    return WaiterSummary(waiter_id=waiter_id, total_tips=round(total, 2), avg_rating=round(avg, 2), num_tips=len(txs))
+
+    return WaiterSummary(
+        waiter_id=waiter_id,
+        total_tips=round(total, 2),
+        avg_rating=round(avg, 2),
+        num_tips=len(txs)
+    )
 
 
 # Transaction routes
@@ -205,17 +269,42 @@ def get_waiter_transactions(waiter_id: str, db: Session = Depends(get_db), curre
 
 # Insights route
 @app.get("/insights/waiter/{waiter_id}", response_model=InsightResponse)
-def get_waiter_insights(waiter_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_waiter_insights(
+    waiter_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Get AI-driven insights for a waiter."""
+
     import pandas as pd
     from legacy_streamlit.sentiment import generate_insights
-    
+
+    # Find waiter
     w = db.query(Waiter).filter_by(waiter_id=waiter_id).one_or_none()
     if not w:
         raise HTTPException(status_code=404, detail="Waiter not found")
-    
+
+    # ---------------- RBAC RULES ----------------
+
+    # Waiters can only see their own insights
+    if current_user.role == "waiter" and current_user.username != waiter_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Waiters can only access their own insights"
+        )
+
+    # Only allow these roles
+    if current_user.role not in ["waiter", "owner", "admin"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized role"
+        )
+
+    # --------------------------------------------
+
     # Build DataFrame from transactions
     txs = db.query(Transaction).filter_by(waiter_id=w.id).all()
+
     data = []
     for t in txs:
         data.append({
@@ -226,9 +315,17 @@ def get_waiter_insights(waiter_id: str, db: Session = Depends(get_db), current_u
             "feedback": t.feedback.text if t.feedback else "",
             "sentiment": t.feedback.sentiment if t.feedback else "",
         })
-    
+
     df = pd.DataFrame(data) if data else pd.DataFrame()
+
     insights = generate_insights(df, waiter_id)
+
+    return InsightResponse(
+        score=round(float(insights.get("score", 0)), 3),
+        trend=insights.get("trend", "stable"),
+        recommendations=insights.get("recommendations", []),
+        encouragement=insights.get("encouragement", ""),
+    )
 
     # Differential privacy: add small noise to scores for non-admin users
     try:
@@ -374,7 +471,11 @@ def ml_waiter_recommendations(waiter_id: str, db: Session = Depends(get_db), cur
 
 @app.get("/ml/owner/recommendations")
 def ml_owner_recommendations(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """Owner-level ML recommendations (staffing, training, peaks)."""
+    """Owner-level ML recommendations."""
+
+    if current_user.role not in ("owner", "admin"):
+        raise HTTPException(status_code=403, detail="Owner or admin required")
+
     try:
         rec = generate_owner_recommendations(db)
         return rec

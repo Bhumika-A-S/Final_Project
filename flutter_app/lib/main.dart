@@ -44,7 +44,9 @@ class TipTrackApp extends StatelessWidget {
       child: Consumer<AuthModel>(
         builder: (ctx, auth, _) {
           // keep API client token in sync
-          api.setToken(auth.token);
+          if (auth.token != null) {
+              api.setToken(auth.token!);
+     }
 
           return MaterialApp(
             title: 'TipTrack',

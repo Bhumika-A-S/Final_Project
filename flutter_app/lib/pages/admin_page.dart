@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import '../services/api.dart';
 import '../main.dart';
-
+import 'login_page.dart';
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
 
@@ -16,7 +16,20 @@ class _AdminPageState extends State<AdminPage> {
   final _waiterCtl = TextEditingController();
   bool _checking = false;
   String? _backendStatus;
+  @override
+void initState() {
+  super.initState();
 
+  // RBAC protection
+  if (api.role != "admin") {
+    Future.microtask(() {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
+    });
+  }
+}
   Future<void> _checkBackend() async {
     setState(() => _checking = true);
     try {

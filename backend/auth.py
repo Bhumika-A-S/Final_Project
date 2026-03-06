@@ -6,6 +6,7 @@ import bcrypt
 import os
 import jwt
 import hashlib
+from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
@@ -14,6 +15,10 @@ from backend.database import User, get_db
 
 security = HTTPBearer()
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def hash_password(password: str):
+    return pwd_context.hash(password)
 # Demo credentials (same as Streamlit app)
 DEMO_CREDENTIALS = {
     "owner": ("ownerpass", "owner"),
@@ -29,13 +34,25 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
 
 def init_demo_users(db: Session):
-    """Create demo users if they don't exist."""
-    for username, (password, role) in DEMO_CREDENTIALS.items():
-        user = db.query(User).filter_by(username=username).one_or_none()
-        if user is None:
-            hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-            user = User(username=username, password_hash=hashed, role=role)
-            db.add(user)
+
+    users = [
+        User(username="admin", password_hash=hash_password("password"), role="admin"),
+        User(username="owner", password_hash=hash_password("password"), role="owner"),
+        User(username="W001", password_hash=hash_password("password"), role="waiter"),
+    ]
+
+    for u in users:
+        existing = db.query(User).filter_by(username=u.username).first()
+        if not existing:
+            db.add(u)
+
+    db.commit()
+
+    for u in users:
+        existing = db.query(User).filter_by(username=u.username).first()
+        if not existing:
+            db.add(u)
+
     db.commit()
 
 
@@ -47,16 +64,17 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return False
 
 
-def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
-    """Authenticate user by username and password."""
-    user = db.query(User).filter_by(username=username).one_or_none()
-    if user is None:
+def authenticate_user(db: Session, username: str, password: str):
+
+    user = db.query(User).filter(User.username == username).first()
+
+    if not user:
         return None
-    if not verify_password(password, user.password_hash):
+
+    if not pwd_context.verify(password, user.password_hash):
         return None
+
     return user
-
-
 def create_access_token(username: str, role: str, expires_delta: Optional[timedelta] = None) -> str:
     """Create a JWT access token for `username` with `role` claim."""
     to_encode = {"sub": username, "role": role}
@@ -121,6 +139,20 @@ def hash_identifier(value: str) -> Optional[str]:
     h.update(b":")
     h.update(value.encode())
     return h.hexdigest()
+from fastapi import Depends, HTTPException, status
 
+def require_role(allowed_roles: list):
+    
+    def role_checker(user = Depends(get_current_user)):
+        
+        if user["role"] not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to access this resource"
+            )
+
+        return user
+
+    return role_checker
 
 __all__ = ["init_demo_users", "verify_password", "authenticate_user", "get_current_user", "security", "create_access_token", "hash_identifier"]

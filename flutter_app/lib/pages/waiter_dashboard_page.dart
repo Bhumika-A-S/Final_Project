@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api.dart';
 import '../main.dart';
-
+import 'login_page.dart';
 class WaiterDashboardPage extends StatefulWidget {
   const WaiterDashboardPage({super.key});
 
@@ -12,21 +12,24 @@ class WaiterDashboardPage extends StatefulWidget {
 
 class _WaiterDashboardPageState extends State<WaiterDashboardPage> {
   final _waiterCtl = TextEditingController();
-  Map<String, dynamic>? _summary;
-  Map<String, dynamic>? _insights;
-  bool _loading = false;
-  String? _error;
 
+bool _loading = false;
+String? _error;
+
+Map<String, dynamic>? _summary;
+Map<String, dynamic>? _insights;
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final auth = Provider.of<AuthModel>(context, listen: false);
-      if (auth.role == 'waiter' && auth.username != null) {
-        _waiterCtl.text = auth.username!;
-        _fetch();
-      }
-    });
+
+    if (api.role != "waiter") {
+      Future.microtask(() {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+        );
+      });
+    }
   }
 
   Future<void> _fetch() async {
