@@ -10,7 +10,7 @@ from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
-
+from backend.database import SessionLocal
 from backend.database import User, get_db
 
 security = HTTPBearer()
@@ -33,27 +33,23 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
 
-def init_demo_users(db: Session):
+def init_demo_users():
+    db = SessionLocal()
 
     users = [
-        User(username="admin", password_hash=hash_password("password"), role="admin"),
-        User(username="owner", password_hash=hash_password("password"), role="owner"),
-        User(username="W001", password_hash=hash_password("password"), role="waiter"),
+        ("admin", "password", "admin"),
+        ("waiter1", "password", "waiter")
     ]
 
-    for u in users:
-        existing = db.query(User).filter_by(username=u.username).first()
+    for username, password, role in users:
+        existing = db.query(User).filter(User.username == username).first()
         if not existing:
-            db.add(u)
+            hashed = pwd_context.hash(password)
+            new_user = User(username=username, password_hash=hashed, role=role)
+            db.add(new_user)
 
     db.commit()
-
-    for u in users:
-        existing = db.query(User).filter_by(username=u.username).first()
-        if not existing:
-            db.add(u)
-
-    db.commit()
+    db.close()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

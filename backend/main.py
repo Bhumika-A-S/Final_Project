@@ -5,7 +5,9 @@ import os
 from fastapi import Depends, FastAPI, HTTPException, status, Body
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-
+from backend.auth import init_demo_users
+from backend.database import engine
+from backend.database import Base
 from backend.auth import (
     authenticate_user,
     get_current_user,
@@ -58,8 +60,7 @@ app.add_middleware(
 def startup_event():
     """Initialize database and demo users."""
     init_db()
-    db = next(get_db())
-    init_demo_users(db)
+    init_demo_users()
 
 
 @app.get("/")

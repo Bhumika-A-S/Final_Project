@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+
 import '../services/api.dart';
+import '../main.dart';
+
 import 'waiter_dashboard_page.dart';
 import 'owner_dashboard_page.dart';
 import 'admin_page.dart';
@@ -43,44 +48,53 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     String role = result["role"];
+    String token = result["access_token"];
 
-    // WAITER LOGIN
+    // Save token locally
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString("token", token);
+    await prefs.setString("role", role);
+
+    // Update Provider (AuthModel)
+    Provider.of<AuthModel>(context, listen: false).update(
+      t: token,
+      r: role,
+      u: usernameController.text,
+    );
+
+    // Navigate based on role
     if (role == "waiter") {
 
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) =>
-             WaiterDashboardPage(),
+          builder: (context) => const WaiterDashboardPage(),
         ),
       );
 
     }
 
-    // OWNER LOGIN
     else if (role == "owner") {
 
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => OwnerDashboardPage(),
+          builder: (context) => const OwnerDashboardPage(),
         ),
       );
 
     }
 
-    // ADMIN LOGIN
     else if (role == "admin") {
 
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => AdminPage(),
+          builder: (context) => const AdminPage(),
         ),
       );
 
     }
-
   }
 
   @override

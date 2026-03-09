@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import 'pages/customer_page.dart';
 import 'pages/waiter_dashboard_page.dart';
 import 'pages/owner_dashboard_page.dart';
 import 'pages/admin_page.dart';
 import 'pages/login_page.dart';
 import 'pages/ai_assistant_page.dart';
+
 import 'services/api.dart';
 
 void main() {
@@ -29,6 +31,7 @@ class AuthModel extends ChangeNotifier {
   void clear() {
     token = null;
     role = null;
+    username = null;
     waiterId = null;
     notifyListeners();
   }
@@ -43,21 +46,39 @@ class TipTrackApp extends StatelessWidget {
       create: (_) => AuthModel(),
       child: Consumer<AuthModel>(
         builder: (ctx, auth, _) {
+
           // keep API client token in sync
           if (auth.token != null) {
-              api.setToken(auth.token!);
-     }
+            api.setToken(auth.token!);
+          }
 
           return MaterialApp(
             title: 'TipTrack',
-            theme: ThemeData(primarySwatch: Colors.blue),
-            home: auth.token == null ? const LoginPage() : const CustomerPage(),
+
+            debugShowCheckedModeBanner: false,
+
+            theme: ThemeData(
+              primarySwatch: Colors.blue,
+            ),
+
+            // If not logged in → LoginPage
+            // If logged in → CustomerPage
+            home: auth.token == null
+                ? const LoginPage()
+                : const CustomerPage(),
+
             routes: {
+
               '/login': (_) => const LoginPage(),
+
               '/waiter': (_) => const WaiterDashboardPage(),
+
               '/owner': (_) => const OwnerDashboardPage(),
+
               '/admin': (_) => const AdminPage(),
+
               '/ai': (_) => const AiAssistantPage(),
+
             },
           );
         },

@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional
 from pathlib import Path
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, create_engine
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker, relationship
 
@@ -24,7 +24,7 @@ class User(Base):
     username = Column(String(128), unique=True, nullable=False, index=True)
     password_hash = Column(String(256), nullable=True)
     role = Column(String(32), nullable=False)
-
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 class Waiter(Base):
     __tablename__ = "waiters"
