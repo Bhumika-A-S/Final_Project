@@ -20,15 +20,11 @@ class ApiClient {
 
       baseUrl = overrideBase;
 
-    } else if (kIsWeb) {
-
-      // Flutter Web
-      baseUrl = 'http://localhost:8000';
-
     } else {
 
-      // Android device (replace with your laptop IP)
-      baseUrl = 'http://192.168.40.1:8000';
+      // Use same backend for all platforms
+      baseUrl = 'http://localhost:8000';
+
     }
 
     print("API BASE URL: $baseUrl");
@@ -67,24 +63,19 @@ class ApiClient {
         }),
       );
 
+      print("LOGIN STATUS: ${resp.statusCode}");
+      print("LOGIN BODY: ${resp.body}");
+
       if (resp.statusCode == 200) {
 
         final data = jsonDecode(resp.body);
 
-        // Save token
         _token = data['access_token'];
-
-        // Save role
         role = data['role'];
-
-        print("LOGIN SUCCESS");
-        print("TOKEN: $_token");
-        print("ROLE: $role");
 
         return data;
       }
 
-      print("LOGIN FAILED: ${resp.body}");
       return null;
 
     } catch (e) {
@@ -113,7 +104,6 @@ class ApiClient {
         return jsonDecode(resp.body);
       }
 
-      print("GET WAITERS ERROR: ${resp.body}");
       return [];
 
     } catch (e) {
@@ -124,7 +114,7 @@ class ApiClient {
   }
 
   // ===============================
-  // CUSTOMER TIP (NO LOGIN)
+  // CUSTOMER TIP
   // ===============================
 
   Future<Map<String, dynamic>?> submitTip(
@@ -139,12 +129,9 @@ class ApiClient {
 
       final resp = await http.post(
         Uri.parse(url),
-
-        // Customer endpoint — no token
         headers: {
           'Content-Type': 'application/json',
         },
-
         body: jsonEncode({
           'waiter_id': waiterId,
           'amount': amount,
@@ -157,7 +144,6 @@ class ApiClient {
         return jsonDecode(resp.body);
       }
 
-      print("TIP ERROR: ${resp.body}");
       return null;
 
     } catch (e) {
@@ -209,9 +195,12 @@ class ApiClient {
         Uri.parse(url),
         headers: _headers(),
         body: jsonEncode({
-          "query": q
+          "question": q
         }),
       );
+
+       print("AI STATUS: ${resp.statusCode}");
+       print("AI BODY: ${resp.body}");
 
       if (resp.statusCode == 200) {
         return jsonDecode(resp.body);

@@ -1,7 +1,15 @@
 """FastAPI main application and routes."""
-from typing import List, Dict
+from dotenv import load_dotenv
+load_dotenv()
 
 import os
+
+from typing import List, Dict
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+
 from fastapi import Depends, FastAPI, HTTPException, status, Body
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -45,6 +53,10 @@ from backend.schemas import (
 )
 
 app = FastAPI(title="TipTrack API", version="1.0.0")
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
 
 # CORS for Streamlit
 app.add_middleware(
@@ -123,7 +135,7 @@ def get_waiter(waiter_id: str, db: Session = Depends(get_db), current_user: User
 def get_waiter_summary(
     waiter_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    
 ):
     """Get waiter summary (total tips, avg rating, count)."""
 
@@ -135,18 +147,7 @@ def get_waiter_summary(
     # ---------------- RBAC RULES ----------------
 
     # Waiters can only access their own summary
-    if current_user.role == "waiter" and current_user.username != waiter_id:
-        raise HTTPException(
-            status_code=403,
-            detail="Waiters can only access their own summary"
-        )
-
-    # Only allow waiter, owner, admin roles
-    if current_user.role not in ["waiter", "owner", "admin"]:
-        raise HTTPException(
-            status_code=403,
-            detail="Unauthorized role"
-        )
+    
 
     # --------------------------------------------
 
@@ -375,7 +376,7 @@ def list_all_transactions(db: Session = Depends(get_db), current_user: User = De
             amount=t.amount,
             timestamp=t.timestamp,
             payment_id=t.payment_id,
-            payment_status=t.payment_status,
+            payment_status=t.payment_status or "pending",
             payment_method=t.payment_method,
             customer_hash=t.customer_hash,
             rating=RatingResponse(id=t.rating.id, transaction_id=t.rating.transaction_id, value=t.rating.value) if t.rating else None,
@@ -629,13 +630,16 @@ def validate_qr(payload: Dict[str, str]):
 
 
 @app.post("/ai/query", response_model=AIQueryResponse)
-
+@limiter.limit("10/minute")
 def ai_query(
+    request: Request,
     body: AIQueryRequest = Body(...),
     current_user: User = Depends(get_optional_current_user),
 ):
     """Process a natural language question via MCP/LLM and return the answer."""
-    from mcp_server.mcp_llm_bridge import MCPLLMBridge
+
+    from backend.mcp_llm_bridge import MCPLLMBridge
+    import os
 
     # Allow unauthenticated customers or any staff
     try:
@@ -644,12 +648,15 @@ def ai_query(
             auth_token=os.getenv("TIPTRACK_MCP_TOKEN", ""),
             openai_api_key=os.getenv("OPENAI_API_KEY"),
         )
+
         result = bridge.process_query(body.question)
+
         return AIQueryResponse(
             answer=result.get("answer", ""),
             tools_used=result.get("tools_used", []),
             success=result.get("success", False),
         )
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

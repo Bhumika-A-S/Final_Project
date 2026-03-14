@@ -22,8 +22,17 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController passwordController = TextEditingController();
 
   bool loading = false;
+  bool hidePassword = true;
 
   Future<void> login() async {
+
+    // Validate input
+    if (usernameController.text.isEmpty || passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Enter username and password")),
+      );
+      return;
+    }
 
     setState(() {
       loading = true;
@@ -39,23 +48,25 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     if (result == null) {
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Login failed")),
       );
-
       return;
     }
 
     String role = result["role"];
     String token = result["access_token"];
 
-    // Save token locally
+    // Save token in API client
+    api.setToken(token);
+    api.role = role;
+
+    // Save locally
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString("token", token);
     await prefs.setString("role", role);
 
-    // Update Provider (AuthModel)
+    // Update provider
     Provider.of<AuthModel>(context, listen: false).update(
       t: token,
       r: role,
@@ -68,29 +79,25 @@ class _LoginPageState extends State<LoginPage> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => const WaiterDashboardPage(),
+          builder: (_) => const WaiterDashboardPage(),
         ),
       );
 
-    }
-
-    else if (role == "owner") {
+    } else if (role == "owner") {
 
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => const OwnerDashboardPage(),
+          builder: (_) => const OwnerDashboardPage(),
         ),
       );
 
-    }
-
-    else if (role == "admin") {
+    } else if (role == "admin") {
 
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => const AdminPage(),
+          builder: (_) => const AdminPage(),
         ),
       );
 
@@ -124,9 +131,21 @@ class _LoginPageState extends State<LoginPage> {
 
             TextField(
               controller: passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
+              obscureText: hidePassword,
+              decoration: InputDecoration(
                 labelText: "Password",
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    hidePassword
+                        ? Icons.visibility
+                        : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      hidePassword = !hidePassword;
+                    });
+                  },
+                ),
               ),
             ),
 
